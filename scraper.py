@@ -36,7 +36,7 @@ for tr in trs:
         data['codigo'].append(split[0].strip())
         split = ''.join(split[1:]).split('(')
         data['materia'].append(unidecode(split[0].strip()))
-        data['horarios'].append([])
+        data['horarios'].append({})
         counter += 1
     else:
         tds = tr.find_all('td', {'class':'sl'})
@@ -48,7 +48,9 @@ for tr in trs:
             horario_ls = horario.split(' - ')
             horario_ls = [h[:h.index('(')] for h in horario_ls]
             horario_ls = list(map(hour_code_to_index, horario_ls))
-            data['horarios'][counter].append(horario_ls)
+            if turma not in data['horarios'][counter]:
+                data['horarios'][counter][turma] = []
+            data['horarios'][counter][turma] = horario_ls
 
 df = pd.DataFrame(data=data)
 
@@ -68,21 +70,27 @@ materias = ['Análise De Algorítmos',
 
 materias = list(map(lambda item: unidecode(item), materias))
 
-data = {'materia':[], 'horarios':[]}
+data = {'materia':[], 'horarios':[], 'codes': []}
 for materia in materias:
     res = df[df['materia'] == materia]
     if len(res) > 0:
-        h = []
+        h = {}
+        codes = []
         for index, row in res.iterrows():
-            h += row['horarios']
+            h.update(row['horarios'])
+            for key in row['horarios'].keys():
+                codes.append(row['codigo'] + '-' + key)
+            #codes += [row['codigo']] * len(row['horarios'])
         data['materia'].append(materia)
         data['horarios'].append(h)
+        data['codes'].append(codes)
 
 result = pd.DataFrame(data=data)
+
 with open("horarios.csv", 'w', newline='') as f:
     writer = csv.writer(f)
     for index, row in result.iterrows():
-        for h in row['horarios']:
+        for h in row['horarios'].values():
             writer.writerow([index] + h)
 
 out = str(check_output(['./calc.exe']))
@@ -90,22 +98,19 @@ out = out.split(" \\r\\n")
 
 h = []
 
-print(result)
+
 for code in out:
     os.system('cls')
     h = [['']*18 for i in range(5)]
     for index, val in enumerate(code.strip("b'").split(" ")):
         val = int(str(val))
         if val != 0:
-            selected = result.iloc[index]['horarios'][val - 1]
-            materia = result.iloc[index]['materia']
+            selected = list(result.iloc[index]['horarios'].values())[val - 1]
+            code = result.iloc[index]['codes'][val - 1]
             for horario_index in selected:
                 weekday = horario_index // 18
                 hour = horario_index % 18
-                short = ""
-                for word in materia.split(' '):
-                    short+=word[0:2]
-                h[weekday][hour] = short
+                h[weekday][hour] = code
     weekdays = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta']
     data = dict(zip(weekdays, h))
     horario_df = pd.DataFrame(data=data)
