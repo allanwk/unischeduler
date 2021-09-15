@@ -85,6 +85,36 @@ for materia in materias:
         data['horarios'].append(h)
         data['codes'].append(codes)
 
+reordered_codes = []
+reordered_hours = []
+
+for line in range(len(data['materia'])):
+    codes_copy = data['codes'][line].copy()
+    dict_copy = data['horarios'][line].copy()
+    new_codes = []
+    new_h = {}
+    inserted_index = []
+    for index, code in enumerate(codes_copy):
+        if 'EC' in code:
+            new_codes.append(code)
+            inserted_index.append(index)
+            turma = list(dict_copy.keys())[index]
+            new_h[turma] = dict_copy[turma]
+
+    for index in reversed(inserted_index):
+        dict_copy.pop(list(dict_copy.keys())[index])
+    new_h.update(dict_copy)
+
+    for index, code in enumerate(codes_copy):
+        if index not in inserted_index:
+            new_codes.append(code)
+
+    reordered_codes.append(new_codes)
+    reordered_hours.append(new_h)
+
+data['codes'] = reordered_codes
+data['horarios'] = reordered_hours
+
 result = pd.DataFrame(data=data)
 
 with open("horarios.csv", 'w', newline='') as f:
